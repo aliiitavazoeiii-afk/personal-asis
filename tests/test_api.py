@@ -78,8 +78,10 @@ def test_pwa_assets_and_no_stale_code():
         assert sw.status_code == 200
         assert 'no-store' in sw.headers['cache-control']
         assert 'addEventListener' in sw.text
-        # No fetch handler => all HTML, JS and private API requests always hit server.
-        assert "addEventListener('fetch'" not in sw.text
+        # Explicit pass-through fetch handler: no CacheStorage or stale shell.
+        assert "addEventListener('fetch'" in sw.text
+        assert "cache:'no-store'" in sw.text
+        assert 'caches.open' not in sw.text
         ui = client.get('/assets/app.js')
         assert 'no-store' in ui.headers['cache-control']
         assert 'navigator.mediaDevices.getUserMedia' in ui.text
