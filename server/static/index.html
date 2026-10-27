@@ -2,7 +2,10 @@
 <html lang="fa" dir="rtl">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
-<meta name="theme-color" content="#050b15"><title>Personal Assist | دستیار شخصی من</title>
+<meta name="theme-color" content="#050b15">
+<link rel="manifest" href="/manifest.webmanifest">
+<link rel="icon" href="/assets/icon-192.png" type="image/png" sizes="192x192">
+<link rel="apple-touch-icon" href="/assets/icon-192.png"><title>Personal Assist | دستیار شخصی من</title>
 <link rel="stylesheet" href="/assets/app.css">
 </head>
 <body>
@@ -23,6 +26,7 @@
     <section id="view-record" class="view record-view">
       <header class="topbar"><span></span><button class="icon-btn" id="close-record" aria-label="انصراف">×</button></header>
       <h2 class="listening" id="record-status">در حال گوش دادن...</h2>
+      <p id="record-help" class="record-help" role="alert" hidden>اگر ضبط در APK قدیمی پاسخ نمی‌دهد، همین آدرس را مستقیم در Chrome باز کن و از «افزودن به صفحه اصلی» استفاده کن. دیگر APK جدید لازم نیست.</p>
       <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
       <div class="record-bottom"><p id="record-timer">۰۰:۰۰</p><button id="stop-record" class="stop-orb" aria-label="پایان ضبط"><span></span></button><p class="record-tip">وقتی صحبتت تمام شد، دکمه را بزن</p></div>
     </section>
@@ -46,7 +50,8 @@
     </section>
     <section id="view-settings" class="view settings-view">
       <header class="topbar"><span></span><h2>تنظیمات</h2><button class="icon-btn" id="back-settings" aria-label="بازگشت">→</button></header>
-      <div class="settings-body"><h3>Personal Assist</h3><p>نسخه ۱ — ثبت گفتار فارسی، یادآوری، کارها و ایده‌ها</p><div class="settings-note">رابط کاربری با هر به‌روزرسانی سرور به‌روز می‌شود. برای اعلان‌های گوشی، اجازه اعلان‌ها را فعال نگه دار.</div><p id="ai-status"></p><button id="change-server" class="outline" hidden>تغییر آدرس سرور</button><button id="logout" class="outline">خروج از حساب</button></div>
+      <div class="settings-body"><h3>Personal Assist</h3><p>نسخه ۱ — ثبت گفتار فارسی، یادآوری، کارها و ایده‌ها</p><div class="settings-note">برای استفاده بدون نصب APK جدید، آدرس asis.filmjadiid.ir را در Chrome اندروید باز کن و از منوی سه‌نقطه «افزودن به صفحه اصلی» یا «Install app» را بزن. ظاهر و قابلیت‌های وب با هر آپدیت سرور به‌روز می‌شوند. اعلان یادآوری در حالت بسته بودن نسخه وب هنوز به راه‌اندازی Web Push نیاز دارد.</div>
+      <button id="install-pwa" class="outline" hidden>نصب نسخه وب روی صفحه اصلی</button><p id="ai-status"></p><button id="change-server" class="outline" hidden>تغییر آدرس سرور</button><button id="logout" class="outline">خروج از حساب</button></div>
     </section>
     <div id="toast" role="status" aria-live="polite" hidden></div>
   </main>
