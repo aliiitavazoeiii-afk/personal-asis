@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 850" preserveAspectRatio="xMidYMid slice">
+<defs>
+<linearGradient id="sky" x1=".2" y1="0" x2=".8" y2="1"><stop stop-color="#031224"/><stop offset=".32" stop-color="#172b45"/><stop offset=".49" stop-color="#3a4053"/><stop offset=".61" stop-color="#9d5f58"/><stop offset=".76" stop-color="#201b31"/><stop offset="1" stop-color="#030611"/></linearGradient>
+<linearGradient id="night" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#09132a" stop-opacity=".5"/><stop offset=".48" stop-color="#040b19" stop-opacity=".12"/><stop offset="1" stop-color="#000309" stop-opacity="1"/></linearGradient>
+<linearGradient id="mountain" x1="0" y1="0" x2=".4" y2="1"><stop stop-color="#263852"/><stop offset=".5" stop-color="#09192a"/><stop offset="1" stop-color="#01040a"/></linearGradient>
+<filter id="blur"><feGaussianBlur stdDeviation="21"/></filter>
+</defs>
+<rect width="400" height="850" fill="url(#sky)"/>
+<ellipse cx="310" cy="448" rx="140" ry="32" fill="#c9937a" opacity=".55" filter="url(#blur)"/>
+<path d="M0 498 Q75 459 136 484 Q225 441 400 489 L400 660 0 660Z" fill="#262739" opacity=".6"/>
+<path d="M0 600 42 532 80 549 143 480 198 555 244 506 293 554 356 480 400 535 400 850 0 850Z" fill="url(#mountain)"/>
+<path d="M65 555 143 480 167 516 142 506 126 523 115 518Z M319 527 356 480 378 512 356 505 342 517Z M218 540 244 506 267 531 243 521Z" fill="#7c8591" opacity=".25"/>
+<path d="M0 720 61 610 107 642 155 585 215 672 260 600 307 658 369 574 400 610V850H0Z" fill="#050b16"/>
+<path d="M0 775 45 711 94 752 155 683 193 727 224 704 267 768 327 707 400 769V850H0Z" fill="#02060c"/>
+<rect width="400" height="850" fill="url(#night)"/>
+</svg>

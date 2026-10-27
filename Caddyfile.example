@@ -1,0 +1,5 @@
+# Replace assistant.example.com with a subdomain you control, and point DNS at the server.
+assistant.example.com {
+    encode zstd gzip
+    reverse_proxy 127.0.0.1:8788
+}

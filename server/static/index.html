@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#050b15"><title>Personal Assist | دستیار شخصی من</title>
+<link rel="stylesheet" href="/assets/app.css">
+</head>
+<body>
+<div id="shell">
+  <section id="login-screen" class="login" hidden>
+    <div class="login-mark">✦</div><h1>دستیار شخصی من</h1><p>فضای خصوصی برای ثبت هر چیزی که به ذهنت می‌رسد.</p>
+    <form id="login-form"><label for="password">رمز ورود</label><input id="password" type="password" required autocomplete="current-password" placeholder="رمز شخصی"><button class="primary" type="submit">ورود</button></form>
+    <p id="login-error" role="alert" class="danger" hidden></p>
+  </section>
+  <main id="app" hidden>
+    <section id="view-home" class="view home is-active">
+      <div class="landscape" aria-hidden="true"></div>
+      <header class="topbar"><button class="icon-btn" id="settings-btn" aria-label="تنظیمات">⚙</button><span></span><button class="icon-btn" id="home-menu" aria-label="فهرست کارها">☰</button></header>
+      <div class="hello"><h1>سلام علی</h1><p>چه کمکی می‌تونم برات انجام بدم؟</p></div>
+      <div class="hero-record"><button id="mic-button" class="mic-orb" aria-label="شروع ضبط صدا"><svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="2" width="6" height="13" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v4m-4 0h8"/></svg></button><div class="mic-hint">روی میکروفون بزن و صحبت کن</div></div>
+      <div class="home-shortcuts"><button data-quick="note"><span class="shortcut-icon">▤</span><span>یادداشت سریع</span></button><button data-quick="reminder"><span class="shortcut-icon">♧</span><span>یادآوری</span></button><button data-quick="task"><span class="shortcut-icon">＋</span><span>کار جدید</span></button></div>
+    </section>
+    <section id="view-record" class="view record-view">
+      <header class="topbar"><span></span><button class="icon-btn" id="close-record" aria-label="انصراف">×</button></header>
+      <h2 class="listening" id="record-status">در حال گوش دادن...</h2>
+      <div class="wave" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+      <div class="record-bottom"><p id="record-timer">۰۰:۰۰</p><button id="stop-record" class="stop-orb" aria-label="پایان ضبط"><span></span></button><p class="record-tip">وقتی صحبتت تمام شد، دکمه را بزن</p></div>
+    </section>
+    <section id="view-review" class="view review-view">
+      <header class="topbar"><span></span><h2>تحلیل و اقدام</h2><button class="icon-btn" id="back-review" aria-label="برگشت">→</button></header>
+      <div class="review-scroll">
+        <label class="field-label" for="review-title">متن ثبت‌شده</label><textarea id="review-title" rows="4" placeholder="صحبتت اینجا به متن تبدیل می‌شود؛ می‌توانی آن را ویرایش کنی"></textarea>
+        <p class="field-label">نوع ثبت</p><div class="kind-chips" id="kind-chips"><button data-kind="reminder">♧ یادآوری</button><button data-kind="task">✓ کار</button><button data-kind="note">▤ یادداشت</button><button data-kind="idea">✧ ایده</button></div>
+        <div id="due-wrap"><label class="field-label" for="due-input">زمان یادآوری</label><input type="datetime-local" id="due-input" aria-label="زمان یادآوری"><p class="field-tip">ساعت بر اساس زمان گوشی شما ثبت می‌شود.</p></div>
+        <div class="suggestion" id="suggestion"><small>اقدام پیشنهادی</small><div id="suggestion-content">متن را بررسی کن و ثبت کن.</div></div>
+        <label class="field-label" for="review-detail">جزئیات (اختیاری)</label><textarea id="review-detail" rows="2" placeholder="جزئیات بیشتر..."></textarea>
+      </div>
+      <div class="review-footer"><button id="save-item" class="primary">ثبت</button><div class="three-links"><button data-quick="note">یادداشت ساده</button><button data-quick="task">کار جدید</button><button id="go-list">تقویم و کارها</button></div></div>
+    </section>
+    <section id="view-list" class="view list-view">
+      <header class="topbar"><button class="icon-btn" id="search-btn" aria-label="جست‌وجو">⌕</button><h2>دستیار شخصی من</h2><button class="icon-btn" id="back-list" aria-label="صفحه اصلی">☰</button></header>
+      <div class="filters"><button class="selected" data-filter="all">همه</button><button data-filter="task">کارها</button><button data-filter="reminder">یادآوری‌ها</button><button data-filter="note">یادداشت‌ها</button><button data-filter="idea">ایده‌ها</button></div>
+      <input id="list-search" class="search-input" type="search" placeholder="جست‌وجو در حافظه شخصی" hidden>
+      <div id="items-list" class="items-list"></div>
+      <nav class="bottom-nav"><button data-nav="home"><span>⌂</span>خانه</button><button data-nav="list"><span>▣</span>کارها</button><button id="nav-mic" class="nav-mic" aria-label="ضبط صدا">♩</button><button data-nav="reminder"><span>▦</span>تقویم</button><button data-nav="more"><span>•••</span>بیشتر</button></nav>
+    </section>
+    <section id="view-settings" class="view settings-view">
+      <header class="topbar"><span></span><h2>تنظیمات</h2><button class="icon-btn" id="back-settings" aria-label="بازگشت">→</button></header>
+      <div class="settings-body"><h3>Personal Assist</h3><p>نسخه ۱ — ثبت گفتار فارسی، یادآوری، کارها و ایده‌ها</p><div class="settings-note">رابط کاربری با هر به‌روزرسانی سرور به‌روز می‌شود. برای اعلان‌های گوشی، اجازه اعلان‌ها را فعال نگه دار.</div><p id="ai-status"></p><button id="change-server" class="outline" hidden>تغییر آدرس سرور</button><button id="logout" class="outline">خروج از حساب</button></div>
+    </section>
+    <div id="toast" role="status" aria-live="polite" hidden></div>
+  </main>
+</div>
+<script src="/assets/app.js" defer></script>
+</body></html>
