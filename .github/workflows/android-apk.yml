@@ -5,7 +5,7 @@ on:
     branches: [main]
     paths: ['android/**', '.github/workflows/android-apk.yml']
 permissions:
-  contents: read
+  contents: write
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -47,3 +47,15 @@ jobs:
           path: android/app/build/outputs/apk/**/*.apk
           if-no-files-found: error
           retention-days: 30
+
+      - name: Publish direct-download prerelease for phone testing
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="$(find android/app/build/outputs/apk -type f -name '*.apk' -print -quit)"
+          test -n "$APK"
+          cp "$APK" PersonalAssist-Android-Test.apk
+          gh release create "android-test-${{ github.run_number }}"             PersonalAssist-Android-Test.apk             --repo "${{ github.repository }}"             --title "Personal Assist Android Test #${{ github.run_number }}"             --notes "Android test APK. This build may be debug-signed. Install manually for testing only. If Android reports a signing mismatch, uninstall the previous debug version and install this file. Personal data is stored on your own server."             --prerelease
