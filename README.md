@@ -2,6 +2,29 @@
 
 **Version 1 / deployable source** — Dark voice-first UI with four screens based on the selected reference: luminous blue microphone over dusk mountains, recording waveform, transcription review, and task/reminder list. This is a visual recreation, not a pixel-perfect extraction of the source design (the separate original background image wasn't supplied).
 
+## Recommended Android use: installable web app (no new APKs)
+
+**Personal Assist is now web-first.** Open **https://asis.filmjadiid.ir** in **Chrome on your Android phone**, sign in, allow microphone access, then use Chrome's menu **Install app** / **Add to Home screen**. This creates an app-like full-screen icon with the same approved dark UI and central microphone. No APK file is needed.
+
+- Browser recording: `getUserMedia` + `MediaRecorder` -> authenticated `POST /api/transcribe` -> review and save. Audio is sent directly from Chrome, **not through the Android WebView JavaScript bridge**.
+- All HTML/CSS/JavaScript comes from your HTTPS server with `Cache-Control: no-store`. The small service worker does not cache assets. New server deployments appear on next app launch/reload.
+- **The old installed APK does not become a PWA and cannot receive new native code from the server.** Its current recording bridge may remain broken. To avoid future APK updates, launch the Chrome-installed PWA instead.
+- **Important reminder limitation:** the PWA currently stores deadlines on the server, but does **not** yet deliver scheduled notifications while closed. That needs Web Push with notification permissions and a server scheduler. Do not rely on closed-app PWA reminders for time-critical alerts yet. The existing APK has independent Android local alarms, but those are native and not transferred to the PWA.
+- To deploy future web updates: `cd /opt/personal-assist && git pull --ff-only origin main && docker compose up -d --build --no-deps personal-assist`. Keep the existing `compose.override.yaml` network and `.env` on the server. Do not edit Caddy again.
+
+### Checking audio issues
+
+A successful OpenAI `GET /v1/models` only confirms API connectivity; it does **not** confirm transcription authorization or credits. Record 5–10 seconds in Chrome, finish recording, and check:
+
+```bash
+cd /opt/personal-assist
+docker compose logs --since=3m personal-assist | grep 'POST /api/transcribe'
+```
+
+A 200 response means server transcription succeeded, 401 means login/session, 413/415/422 indicates audio format/length, 502 means upstream transcription request failed. If no POST appears, the failure is before the server (browser permission, recording, or network). The UI now shows a persistent actionable error message rather than staying stuck.
+
+---
+
 ## Architecture and honest update model
 
 - **Docker / FastAPI + SQLite**: single-owner private data store, 30-day signed session cookie, persistent tasks, notes, ideas, reminders; optional OpenAI speech transcription + Persian interpretation.
