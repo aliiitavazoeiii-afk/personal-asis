@@ -9,7 +9,11 @@ import android.media.MediaRecorder
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.util.Base64
+import android.webkit.CookieManager
+import org.json.JSONObject
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.UUID
 import android.view.View
 import android.webkit.JavascriptInterface
 import android.webkit.WebResourceRequest
@@ -142,22 +146,91 @@ class MainActivity : ComponentActivity() {
             }
         }
     }
+    /**
+     * Upload audio directly from Android. Sending the whole audio as a Base64
+     * JavaScript string can exceed WebView IPC limits and stall transcription.
+     */
+    private fun uploadNativeAudio(file: File) {
+        var connection: HttpURLConnection? = null
+        try {
+            if (!file.exists() || file.length() < 300L) {
+                throw IllegalStateException("صدای ضبط‌شده خیلی کوتاه است")
+            }
+            if (file.length() > 12L * 1024L * 1024L) {
+                throw IllegalStateException("فایل صوتی بیش از حد بزرگ است")
+            }
+            val cookie = CookieManager.getInstance().getCookie(serverUrl)
+            if (cookie.isNullOrBlank()) {
+                throw IllegalStateException("نشست ورود پیدا نشد؛ دوباره وارد حساب شو")
+            }
+            val boundary = "personalassist-${UUID.randomUUID()}"
+            connection = (URL("$serverUrl/api/transcribe").openConnection() as HttpURLConnection)
+            connection.requestMethod = "POST"
+            connection.doOutput = true
+            connection.connectTimeout = 15000
+            connection.readTimeout = 100000
+            connection.setRequestProperty("Cookie", cookie)
+            connection.setRequestProperty("Accept", "application/json")
+            connection.setRequestProperty("Content-Type", "multipart/form-data; boundary=$boundary")
+            connection.setChunkedStreamingMode(16 * 1024)
+
+            connection.outputStream.use { out ->
+                val header = "--$boundary\r\n" +
+                    "Content-Disposition: form-data; name=\"audio\"; filename=\"voice.m4a\"\r\n" +
+                    "Content-Type: audio/mp4\r\n\r\n"
+                out.write(header.toByteArray(Charsets.UTF_8))
+                file.inputStream().use { input -> input.copyTo(out) }
+                out.write("\r\n--$boundary--\r\n".toByteArray(Charsets.UTF_8))
+                out.flush()
+            }
+
+            val status = connection.responseCode
+            val response = (if (status in 200..299) connection.inputStream
+                            else connection.errorStream)
+                ?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: ""
+            if (status !in 200..299) {
+                val detail = try {
+                    JSONObject(response).optString("detail", "Server error")
+                } catch (_: Exception) {
+                    "Server error"
+                }
+                throw IllegalStateException("HTTP $status: $detail")
+            }
+            val text = JSONObject(response).optString("text").trim()
+            if (text.isEmpty()) throw IllegalStateException("متنی از فایل صوتی تشخیص داده نشد")
+            js("window.PersonalAssist.onNativeTranscription(${JSONObject.quote(text)})")
+        } catch (e: Exception) {
+            val message = e.message?.take(180) ?: e.javaClass.simpleName
+            js("window.PersonalAssist.onNativeUploadError(${JSONObject.quote(message)})")
+        } finally {
+            connection?.disconnect()
+            file.delete()
+        }
+    }
+
     private fun stopNativeRecording() {
         runOnUiThread {
-            val m = recorder ?: return@runOnUiThread
+            val m = recorder ?: run {
+                js("window.PersonalAssist.nativeStatus('error')")
+                return@runOnUiThread
+            }
             val file = recordingFile
             recorder = null
             recordingFile = null
-            try { m.stop(); m.release() } catch (_: Exception) {
-                m.release(); file?.delete(); js("window.PersonalAssist.nativeStatus('error')"); return@runOnUiThread
+            try {
+                m.stop()
+                m.release()
+            } catch (_: Exception) {
+                m.release()
+                file?.delete()
+                js("window.PersonalAssist.nativeStatus('error')")
+                return@runOnUiThread
             }
-            Thread {
-                try {
-                    val payload = Base64.encodeToString(file!!.readBytes(), Base64.NO_WRAP)
-                    js("window.PersonalAssist.onNativeAudio('$payload')")
-                } catch (_: Exception) { js("window.PersonalAssist.nativeStatus('error')") }
-                finally { file?.delete() }
-            }.start()
+            if (file == null) {
+                js("window.PersonalAssist.nativeStatus('error')")
+                return@runOnUiThread
+            }
+            Thread { uploadNativeAudio(file) }.start()
         }
     }
     inner class Bridge {
