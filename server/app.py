@@ -9,11 +9,15 @@ import sqlite3
 import time
 from contextlib import asynccontextmanager
 from pathlib import Path
+from functools import lru_cache
 from zoneinfo import ZoneInfo
+import math
+import struct
+import zlib
 
 import httpx
 from fastapi import FastAPI, File, HTTPException, Request, Response, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from pydantic import BaseModel, Field
 
@@ -135,6 +139,68 @@ def healthz():
 @app.get('/')
 def home():
     return FileResponse(ROOT / 'static' / 'index.html', headers={'Cache-Control': 'no-store'})
+
+
+@app.get('/manifest.webmanifest')
+def app_manifest():
+    return FileResponse(ROOT / 'static' / 'manifest.webmanifest',
+                        media_type='application/manifest+json',
+                        headers={'Cache-Control': 'no-store'})
+
+
+@app.get('/sw.js')
+def service_worker():
+    # No asset caching: every app launch uses the latest server-delivered UI.
+    return FileResponse(ROOT / 'static' / 'sw.js',
+                        media_type='application/javascript',
+                        headers={'Cache-Control': 'no-store', 'Service-Worker-Allowed': '/'})
+
+
+@lru_cache(maxsize=2)
+def app_icon_png(size: int) -> bytes:
+    """Small self-contained PNG generator: no extra dependency or binary Git blobs."""
+    scanlines = bytearray()
+    scale = size / 192
+    for y in range(size):
+        scanlines.append(0)  # PNG filter type: None.
+        for x in range(size):
+            nx, ny = x / scale, y / scale
+            # Solid midnight background, luminous blue central microphone orb.
+            dist = math.hypot(nx - 96, ny - 96)
+            if dist < 72:
+                intensity = max(0, 1 - dist / 72)
+                rgb = (round(14 + 32 * intensity),
+                       round(55 + 90 * intensity),
+                       round(133 + 108 * intensity))
+            else:
+                rgb = (4, 13, 28)
+            # Simple readable white microphone silhouette.
+            capsule = (86 <= nx <= 106 and 48 <= ny <= 111)
+            rounded_top = (ny < 58 and (nx - 96)**2 + (ny - 58)**2 <= 100)
+            rounded_bottom = (ny > 101 and (nx - 96)**2 + (ny - 101)**2 <= 100)
+            arc = (ny >= 103 and ny <= 131 and abs(dist - 0) >= 0 and
+                   abs(math.hypot(nx - 96, ny - 103) - 28) < 4 and ny >= 103)
+            stem = (92 <= nx <= 100 and 129 <= ny <= 147)
+            base = (80 <= nx <= 112 and 144 <= ny <= 149)
+            if capsule or rounded_top or rounded_bottom or arc or stem or base:
+                rgb = (242, 250, 255)
+            scanlines.extend(rgb)
+
+    def chunk(kind: bytes, data: bytes) -> bytes:
+        return struct.pack('>I', len(data)) + kind + data + struct.pack(
+            '>I', zlib.crc32(kind + data) & 0xffffffff)
+    return (b'\x89PNG\r\n\x1a\n' +
+            chunk(b'IHDR', struct.pack('>IIBBBBB', size, size, 8, 2, 0, 0, 0)) +
+            chunk(b'IDAT', zlib.compress(bytes(scanlines), 9)) +
+            chunk(b'IEND', b''))
+
+
+@app.get('/assets/icon-{size}.png')
+def app_icon(size: int):
+    if size not in (192, 512):
+        raise HTTPException(404)
+    return Response(app_icon_png(size), media_type='image/png',
+                    headers={'Cache-Control': 'public, max-age=86400'})
 
 
 @app.get('/assets/{filename}')
