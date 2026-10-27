@@ -53,3 +53,33 @@ def test_parse_without_openai():
         assert r.status_code==200 and r.json()['kind']=='idea'
         resp=client.post('/api/transcribe',files={'audio':('voice.m4a',b'a'*400,'audio/mp4')})
         assert resp.status_code==503
+
+
+def test_pwa_assets_and_no_stale_code():
+    import struct
+    with TestClient(app) as client:
+        root = client.get('/')
+        assert root.status_code == 200
+        assert '/manifest.webmanifest' in root.text
+        assert 'no-store' in root.headers['cache-control']
+        manifest = client.get('/manifest.webmanifest')
+        assert manifest.status_code == 200
+        assert manifest.json()['display'] == 'standalone'
+        assert manifest.json()['start_url'] == '/'
+        assert 'no-store' in manifest.headers['cache-control']
+        for size in (192, 512):
+            icon = client.get(f'/assets/icon-{size}.png')
+            assert icon.status_code == 200
+            assert icon.headers['content-type'].startswith('image/png')
+            assert icon.content[:8] == bytes((137, 80, 78, 71, 13, 10, 26, 10))
+            assert struct.unpack('>II', icon.content[16:24]) == (size, size)
+        assert client.get('/assets/icon-1.png').status_code == 404
+        sw = client.get('/sw.js')
+        assert sw.status_code == 200
+        assert 'no-store' in sw.headers['cache-control']
+        assert 'addEventListener' in sw.text
+        # No fetch handler => all HTML, JS and private API requests always hit server.
+        assert "addEventListener('fetch'" not in sw.text
+        ui = client.get('/assets/app.js')
+        assert 'no-store' in ui.headers['cache-control']
+        assert 'navigator.mediaDevices.getUserMedia' in ui.text
