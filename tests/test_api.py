@@ -83,3 +83,43 @@ def test_pwa_assets_and_no_stale_code():
         ui = client.get('/assets/app.js')
         assert 'no-store' in ui.headers['cache-control']
         assert 'navigator.mediaDevices.getUserMedia' in ui.text
+
+
+def test_transcription_accepts_browser_webm(monkeypatch):
+    import app as application
+    requests = []
+
+    class FakeOpenAIResponse:
+        def raise_for_status(self):
+            return None
+
+        def json(self):
+            return {'text': 'فردا ساعت ده یادم بنداز'}
+
+    class FakeOpenAIClient:
+        def __init__(self, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, exc_type, exc, tb):
+            return False
+
+        async def post(self, url, **kwargs):
+            requests.append((url, kwargs))
+            return FakeOpenAIResponse()
+
+    monkeypatch.setattr(application, 'OPENAI_KEY', 'test-only-key')
+    monkeypatch.setattr(application.httpx, 'AsyncClient', FakeOpenAIClient)
+    with TestClient(app) as client:
+        client.post('/api/login', json={'password': 'test-password-very-private'})
+        answer = client.post('/api/transcribe', files={
+            'audio': ('voice.webm', b'fake-test-audio-data' * 100, 'audio/webm')
+        })
+        assert answer.status_code == 200, answer.text
+        assert answer.json()['text'].startswith('فردا')
+        assert len(requests) == 1
+        assert requests[0][0].endswith('/audio/transcriptions')
+        assert requests[0][1]['data']['language'] == 'fa'
+        assert requests[0][1]['files']['file'][2] == 'audio/webm'
