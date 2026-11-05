@@ -197,3 +197,26 @@ $('install-pwa').onclick=async()=>{
 if('serviceWorker' in navigator && location.protocol==='https:'){
   navigator.serviceWorker.register('/sw.js').catch(()=>{});
 }
+
+
+async function loadDailyReport(){
+  view('report');
+  $('report-summary').textContent='در حال تهیه گزارش از اطلاعات ثبت‌شده...';
+  $('refresh-report').disabled=true;
+  try{
+    const data=await api('/api/daily-report');
+    $('report-date').textContent=data.date+' · '+data.timezone;
+    const stats=[['سررسید امروز',data.counts.due_today],['عقب‌افتاده',data.counts.overdue],['تکمیل امروز',data.counts.completed_today],['بدون زمان',data.counts.unscheduled_tasks]];
+    $('report-stats').replaceChildren(...stats.map(([label,count])=>{
+      const el=document.createElement('div');el.className='report-stat';
+      const num=document.createElement('strong');num.textContent=fa(count);
+      const txt=document.createElement('span');txt.textContent=label;
+      el.append(num,txt);return el;
+    }));
+    $('report-summary').textContent=data.summary;
+  }catch(e){$('report-summary').textContent='گزارش آماده نشد: '+e.message}
+  finally{$('refresh-report').disabled=false}
+}
+$('daily-report-btn').onclick=loadDailyReport;
+$('refresh-report').onclick=loadDailyReport;
+$('back-report').onclick=()=>view('home');
