@@ -402,3 +402,54 @@ async def parse(req: Request, body: ParseInput):
                     'clarification': parsed.get('clarification'), 'source': 'ai'}
     except (httpx.HTTPError, KeyError, ValueError, TypeError):
         return result
+
+
+
+@app.get('/api/daily-report')
+async def daily_report(req: Request):
+    """Read-only daily summary; never invent completed work or mutate records."""
+    require_auth(req)
+    zone = ZoneInfo(DEFAULT_TZ)
+    now = dt.datetime.now(zone)
+    today = now.date()
+    with db() as con:
+        rows = [dict(x) for x in con.execute('SELECT * FROM items ORDER BY created_at DESC LIMIT 5000').fetchall()]
+    def local_day(value):
+        if not value:
+            return None
+        try:
+            return dt.datetime.fromisoformat(value.replace('Z', '+00:00')).astimezone(zone).date()
+        except (ValueError, TypeError):
+            return None
+    due_today = [x for x in rows if x['status'] == 'open' and local_day(x['due_at']) == today]
+    overdue = [x for x in rows if x['status'] == 'open' and local_day(x['due_at']) is not None and local_day(x['due_at']) < today]
+    completed = [x for x in rows if x['status'] == 'done' and local_day(x['updated_at']) == today]
+    unscheduled = [x for x in rows if x['status'] == 'open' and x['kind'] == 'task' and not x['due_at']]
+    facts = {'date': today.isoformat(), 'timezone': DEFAULT_TZ,
+             'due_today': due_today[:30], 'overdue': overdue[:30],
+             'completed_today': completed[:30], 'unscheduled_tasks': unscheduled[:30],
+             'counts': {'due_today': len(due_today), 'overdue': len(overdue),
+                        'completed_today': len(completed), 'unscheduled_tasks': len(unscheduled)}}
+    summary = (f"امروز {len(due_today)} کار یا یادآوری سررسید دارد؛ "
+               f"{len(overdue)} مورد عقب‌افتاده، {len(completed)} مورد تکمیل‌شده امروز "
+               f"و {len(unscheduled)} کار بدون زمان ثبت شده است.")
+    source = 'deterministic'
+    if OPENAI_KEY:
+        try:
+            async with httpx.AsyncClient(timeout=25) as client:
+                r = await client.post('https://api.openai.com/v1/chat/completions',
+                    headers={'Authorization': f'Bearer {OPENAI_KEY}'},
+                    json={'model': os.getenv('REPORT_MODEL', 'gpt-4.1-mini'),
+                          'temperature': 0,
+                          'messages': [
+                              {'role': 'system', 'content': 'Write a concise Persian daily task report grounded ONLY in the provided JSON. Distinguish due today, overdue, completed today and unscheduled. Do not claim tasks were performed unless marked done. No invented facts. Avoid exposing raw IDs.'},
+                              {'role': 'user', 'content': json.dumps(facts, ensure_ascii=False)}
+                          ]})
+                r.raise_for_status()
+                candidate = r.json()['choices'][0]['message']['content'].strip()
+                if candidate:
+                    summary, source = candidate[:3000], 'ai'
+        except (httpx.HTTPError, KeyError, IndexError, TypeError, ValueError):
+            pass
+    return {'summary': summary, 'source': source, 'counts': facts['counts'],
+            'date': facts['date'], 'timezone': DEFAULT_TZ}
