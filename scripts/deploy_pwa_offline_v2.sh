@@ -91,7 +91,7 @@ if [[ "$code" != "401" ]]; then
   false
 fi
 echo "DAILY_REPORT_PROTECTED=OK"
-if curl --noproxy '*' -fsS --max-time 10 http://127.0.0.1:8788/ | grep -Fq 'گزارش امروز'; then
+if curl --noproxy '*' -fsS --max-time 10 http://127.0.0.1:8788/ | grep -F 'گزارش امروز' >/dev/null; then
   echo "LOCAL_NEW_UI=OK"
 else
   echo "Local UI marker missing."
@@ -100,7 +100,7 @@ fi
 
 # External networking may be slow/blocked on this VPS; never roll back healthy
 # application solely because the public domain cannot be reached from the VPS.
-if curl -fsS --max-time 12 https://asis.filmjadiid.ir/ | grep -Fq 'گزارش امروز'; then
+if curl -fsS --max-time 12 https://asis.filmjadiid.ir/ | grep -F 'گزارش امروز' >/dev/null; then
   echo "PUBLIC_NEW_UI=OK"
 else
   echo "PUBLIC_CHECK=WARNING (check from your phone; local deployment is healthy)"
