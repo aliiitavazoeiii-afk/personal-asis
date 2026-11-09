@@ -20,6 +20,7 @@ from fastapi import FastAPI, File, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse, Response
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from pydantic import BaseModel, Field
+from mcp_bridge import router as mcp_router
 
 ROOT = Path(__file__).parent
 DB_FILE = Path(os.getenv('DB_PATH', '/data/assistant.sqlite3'))
@@ -57,6 +58,7 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(title='Personal Assist', docs_url=None, redoc_url=None, lifespan=lifespan)
+app.include_router(mcp_router)
 
 
 @app.middleware('http')
