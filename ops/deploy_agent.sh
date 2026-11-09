@@ -81,7 +81,31 @@ CHANGED=yes
 git checkout --quiet --detach "$TARGET"
 docker image tag "$NEXT_TAG" "$OLD_TAG"
 docker compose up -d --no-deps --no-build --force-recreate personal-assist
-curl -fsS --retry 12 --retry-connrefused --retry-delay 2 --max-time 5 http://127.0.0.1:8788/healthz >/dev/null
+# Docker reports "Started" before Uvicorn has finished binding its TCP listener.
+# A startup-time TCP reset (curl 56) is transient: retry *all* non-200 results.
+READY=no
+for ((probe=1; probe<=60; probe++)); do
+  if curl --noproxy '*' -fsS --max-time 3 http://127.0.0.1:8788/healthz >/dev/null 2>&1; then
+    READY=yes
+    echo "APP_HEALTH_OK_ON_PROBE=$probe"
+    break
+  fi
+  sleep 2
+done
+if test "$READY" != yes; then
+  echo "STOP: new app did not become healthy within 120 seconds"
+  docker compose ps personal-assist || true
+  docker compose logs --tail=40 personal-assist || true
+  false
+fi
+# Confirm the newly introduced MCP endpoint has an actual auth boundary;
+# when no bearer token is supplied, it must return HTTP 401 (not 404/200).
+MCP_DENIED="$(curl --noproxy '*' -sS -o /dev/null -w '%{http_code}' --max-time 6 -H 'Host: asis.filmjadiid.ir' http://127.0.0.1:8788/mcp/)"
+if test "$MCP_DENIED" != 401; then
+  echo "STOP: expected token-protected MCP endpoint, got HTTP=$MCP_DENIED"
+  false
+fi
+echo "MCP_AUTH_GATE_OK"
 printf '%s\n' "$TARGET" > "$STATE/applied.sha"
 rm -f "$STATE/failed.sha"
 CHANGED=no
