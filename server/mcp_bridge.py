@@ -16,6 +16,7 @@ router = APIRouter()
 KINDS = ("task", "reminder", "note", "idea")
 STATUSES = ("open", "done")
 VERSION = "2025-06-18"
+DB_PATH = Path(os.getenv("DB_PATH", "/data/assistant.sqlite3"))
 
 SCHEMAS = {
     "list_items": ({"kind": {"type": "string", "enum": ["all", *KINDS], "default": "all"},
@@ -44,7 +45,7 @@ DESCRIPTIONS = {
 
 
 def _db():
-    con = sqlite3.connect(os.getenv("DB_PATH", "/data/assistant.sqlite3"), timeout=10)
+    con = sqlite3.connect(DB_PATH, timeout=10)
     con.row_factory = sqlite3.Row
     return con
 
