@@ -36,23 +36,20 @@ def _rpc(client, method, params=None, request_id=1, token="very-long-test-token-
     )
 
 
-def test_mcp_requires_separate_bearer_token(monkeypatch):
-    monkeypatch.setenv("MCP_API_TOKEN", "very-long-test-token-not-for-production-123")
-    with TestClient(app, base_url="https://asis.filmjadiid.ir") as client:
-        client.post("/api/login", json={"password": "test-password-very-private"})
-        # Cookie auth does not allow access to the agent endpoint.
-        r = client.post("/mcp/", json={"jsonrpc": "2.0", "id": 1, "method": "ping"})
-        assert r.status_code == 401
-        r = _rpc(client, "ping", token="this-token-is-not-the-actual-access-token")
-        assert r.status_code == 401
-    with TestClient(app, base_url="https://evil.example") as client:
-        r = _rpc(client, "ping")
-        assert r.status_code == 403
-
-
 def test_mcp_end_to_end_create_update_list(monkeypatch):
     monkeypatch.setenv("MCP_API_TOKEN", "very-long-test-token-not-for-production-123")
     with TestClient(app, base_url="https://asis.filmjadiid.ir") as client:
+        client.post("/api/login", json={"password": "test-password-very-private"})
+        # Browser login does not grant an MCP bearer credential.
+        no_token = client.post("/mcp/", json={"jsonrpc": "2.0", "id": 1, "method": "ping"})
+        assert no_token.status_code == 401
+        bad_token = _rpc(client, "ping", token="this-token-is-not-the-actual-access-token")
+        assert bad_token.status_code == 401
+        wrong_host = client.post("/mcp/", headers={
+            "Host": "evil.example",
+            "Authorization": "Bearer very-long-test-token-not-for-production-123",
+        }, json={"jsonrpc": "2.0", "id": 1, "method": "ping"})
+        assert wrong_host.status_code == 403
         hello = _rpc(client, "initialize", {
             "protocolVersion": "2025-06-18",
             "capabilities": {},
