@@ -1,0 +1,93 @@
+name: Deploy Personal Assistant MCP (manual)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    environment: assistant-production
+    steps:
+      - name: Validate required deployment secrets
+        env:
+          HOST: ${{ secrets.ASSISTANT_SSH_HOST }}
+          USER: ${{ secrets.ASSISTANT_SSH_USER }}
+          KEY: ${{ secrets.ASSISTANT_SSH_KEY }}
+          KNOWN: ${{ secrets.ASSISTANT_SSH_KNOWN_HOSTS }}
+          TOKEN: ${{ secrets.ASSISTANT_MCP_TOKEN }}
+        run: |
+          test -n "$HOST" && test -n "$USER" && test -n "$KEY"
+          test -n "$KNOWN" && test "${#TOKEN}" -ge 32
+
+      - name: Configure pinned SSH host identity
+        env:
+          KEY: ${{ secrets.ASSISTANT_SSH_KEY }}
+          KNOWN: ${{ secrets.ASSISTANT_SSH_KNOWN_HOSTS }}
+        run: |
+          umask 077
+          mkdir -p "$HOME/.ssh"
+          printf '%s\n' "$KEY" > "$HOME/.ssh/id_ed25519"
+          printf '%s\n' "$KNOWN" > "$HOME/.ssh/known_hosts"
+          chmod 600 "$HOME/.ssh/id_ed25519" "$HOME/.ssh/known_hosts"
+
+      - name: Deploy connector without revealing token or replacing database
+        env:
+          HOST: ${{ secrets.ASSISTANT_SSH_HOST }}
+          USER: ${{ secrets.ASSISTANT_SSH_USER }}
+          TOKEN: ${{ secrets.ASSISTANT_MCP_TOKEN }}
+          RUN_ID: ${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          umask 077
+          token_file="$(mktemp)"
+          trap 'rm -f "$token_file"' EXIT
+          printf '%s' "$TOKEN" > "$token_file"
+          remote_token="/tmp/personal-assistant-mcp-${RUN_ID}.token"
+          scp -o StrictHostKeyChecking=yes -o BatchMode=yes "$token_file" "$USER@$HOST:$remote_token"
+          ssh -o StrictHostKeyChecking=yes -o BatchMode=yes "$USER@$HOST" "MCP_TOKEN_FILE='$remote_token' bash -se" <<'REMOTE'
+          set -euo pipefail
+          cd /opt/personal-assist
+          test -f .env
+          test -f compose.yaml
+          test -z "$(git status --porcelain --untracked-files=no)"
+          test "$(git branch --show-current)" = main
+          test "$(git remote get-url origin | sed 's/\.git$//')" = "https://github.com/aliiitavazoeiii-afk/personal-asis"
+          chmod 600 "$MCP_TOKEN_FILE"
+          trap 'rm -f "$MCP_TOKEN_FILE"' EXIT
+          cp -p .env ".env.backup.$(date +%Y%m%d-%H%M%S)"
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          token = Path(os.environ["MCP_TOKEN_FILE"]).read_text()
+          assert len(token) >= 32 and "\n" not in token
+          envfile = Path(".env")
+          lines = envfile.read_text().splitlines()
+          lines = [line for line in lines if not line.startswith(("MCP_API_TOKEN=", "MCP_ALLOWED_HOSTS="))]
+          lines += ["MCP_API_TOKEN=" + token, "MCP_ALLOWED_HOSTS=asis.filmjadiid.ir"]
+          envfile.write_text("\n".join(lines) + "\n")
+          envfile.chmod(0o600)
+          PY
+          git fetch --no-tags origin main
+          git merge --ff-only origin/main
+          docker compose config -q
+          docker compose up -d --build --no-deps personal-assist
+          curl -fsS --retry 8 --retry-delay 2 http://127.0.0.1:8788/healthz
+          REMOTE
+
+      - name: Verify remote MCP handshake via HTTPS
+        env:
+          TOKEN: ${{ secrets.ASSISTANT_MCP_TOKEN }}
+        run: |
+          set -euo pipefail
+          response="$(curl --fail --silent --show-error --max-time 20 \
+            -X POST 'https://asis.filmjadiid.ir/mcp/' \
+            -H 'Accept: application/json, text/event-stream' \
+            -H 'Content-Type: application/json' \
+            -H "Authorization: Bearer $TOKEN" \
+            -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-06-18","capabilities":{},"clientInfo":{"name":"deploy-check","version":"1.0"}}}')"
+          RESPONSE="$response" python3 -c 'import json,os; v=json.loads(os.environ["RESPONSE"]); assert "result" in v and "error" not in v, v'
+          echo "MCP_PUBLIC_HANDSHAKE_OK"

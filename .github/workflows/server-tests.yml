@@ -2,7 +2,7 @@ name: Test Personal Assist Server and PWA
 
 on:
   push:
-    branches: [main]
+    branches: [main, 'feature/**']
     paths:
       - 'server/**'
       - 'tests/**'
