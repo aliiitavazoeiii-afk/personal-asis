@@ -11,7 +11,7 @@ os.environ["MCP_API_TOKEN"] = "long-test-secret-should-never-be-used-in-producti
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "server"))
 
 from fastapi.testclient import TestClient
-from app import app
+from app import app, PASSWORD
 
 
 def rpc(client, method, params=None, token=None, request_id=1):
@@ -40,7 +40,7 @@ def test_mcp_with_live_rest_db():
                 "arguments": {"kind": "task", "title": "MCP bridge test"}}).json()["result"]
         assert created["isError"] is False
         item_id = created["structuredContent"]["id"]
-        client.post("/api/login", json={"password": "test-password-only"})
+        client.post("/api/login", json={"password": PASSWORD})
         assert any(i["id"] == item_id for i in client.get("/api/items").json()["items"])
         denied = rpc(client, "tools/call", {"name": "delete_item",
                 "arguments": {"item_id": item_id}}).json()["result"]
