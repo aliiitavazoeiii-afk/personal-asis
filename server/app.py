@@ -20,6 +20,7 @@ from fastapi import FastAPI, File, HTTPException, Request, Response, UploadFile
 from fastapi.responses import FileResponse, Response
 from itsdangerous import BadSignature, SignatureExpired, URLSafeTimedSerializer
 from pydantic import BaseModel, Field
+from mcp_bridge import mcp as assistant_mcp, transport as assistant_mcp_transport, ProtectedMCP
 
 ROOT = Path(__file__).parent
 DB_FILE = Path(os.getenv('DB_PATH', '/data/assistant.sqlite3'))
@@ -54,9 +55,13 @@ async def lifespan(app: FastAPI):
             detail TEXT NOT NULL DEFAULT '', due_at TEXT, status TEXT NOT NULL DEFAULT 'open',
             created_at TEXT NOT NULL, updated_at TEXT NOT NULL
         )''')
-    yield
+    async with assistant_mcp.session_manager.run():
+        yield
 
 app = FastAPI(title='Personal Assist', docs_url=None, redoc_url=None, lifespan=lifespan)
+
+# Shared database; the MCP endpoint needs a separate bearer token, not a browser cookie.
+app.mount('/mcp', ProtectedMCP(assistant_mcp_transport))
 
 
 @app.middleware('http')
