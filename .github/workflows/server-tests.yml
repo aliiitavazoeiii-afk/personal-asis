@@ -2,10 +2,11 @@ name: Test Personal Assist Server and PWA
 
 on:
   push:
-    branches: [main, 'feature/**', assistant-production]
+    branches: [main, 'feature/**', 'fix/**', assistant-production]
     paths:
       - 'server/**'
       - 'tests/**'
+      - 'ops/**'
       - '.github/workflows/server-tests.yml'
   workflow_dispatch:
 
@@ -24,5 +25,7 @@ jobs:
         run: python -m pip install -r server/requirements.txt pytest
       - name: Check JavaScript syntax
         run: node --check server/static/assets/app.js
+      - name: Validate deployment agent shell syntax
+        run: bash -n ops/deploy_agent.sh ops/install_agent.sh
       - name: Run FastAPI and PWA tests
         run: python -m pytest tests -q
