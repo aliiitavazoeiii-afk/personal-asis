@@ -55,7 +55,12 @@ async def lifespan(app: FastAPI):
             detail TEXT NOT NULL DEFAULT '', due_at TEXT, status TEXT NOT NULL DEFAULT 'open',
             created_at TEXT NOT NULL, updated_at TEXT NOT NULL
         )''')
-    async with assistant_mcp.session_manager.run():
+    # The MCP SDK manager is single-use per process. Keep legacy REST-only
+    # tests/startups independent when no MCP credential has been enabled.
+    if len(os.getenv("MCP_API_TOKEN", "")) >= 32:
+        async with assistant_mcp.session_manager.run():
+            yield
+    else:
         yield
 
 app = FastAPI(title='Personal Assist', docs_url=None, redoc_url=None, lifespan=lifespan)
